@@ -30,6 +30,7 @@ pub mod util {
     pub mod db_sqlite;
     pub mod hashids;
     pub mod misc;
+    pub mod share_code;
     pub mod syntaxhighlighter;
     pub mod telemetry;
     pub mod version;
@@ -119,6 +120,7 @@ async fn main() -> std::io::Result<()> {
             .service(pasta_endpoint::getrawpasta)
             .service(pasta_endpoint::postrawpasta)
             .service(pasta_endpoint::redirecturl)
+            .service(pasta_endpoint::postredirecturl)
             .service(pasta_endpoint::shortredirecturl)
             .service(qr::getqr)
             .service(file::get_file)
@@ -126,12 +128,14 @@ async fn main() -> std::io::Result<()> {
             .service(file::post_secure_file)
             .service(static_resources::static_resources)
             .service(guide::guide)
+            .service(auth_upload::auth_url_with_status)
             .service(auth_upload::auth_file_with_status)
             .service(auth_upload::auth_upload_with_status)
             .service(auth_upload::auth_raw_pasta_with_status)
             .service(auth_upload::auth_edit_private_with_status)
             .service(auth_upload::auth_remove_private_with_status)
             .service(auth_upload::auth_file)
+            .service(auth_upload::auth_url)
             .service(auth_upload::auth_upload)
             .service(auth_upload::auth_raw_pasta)
             .service(auth_upload::auth_edit_private)
@@ -160,6 +164,7 @@ async fn main() -> std::io::Result<()> {
                     .service(list::list)
                     .service(web::resource("/upload").route(web::post().to(create::create)))
                     .service(create::index_with_status)
+                    .service(pasta_endpoint::root_lookup)
             )
             .default_service(web::route().to(errors::not_found))
     })

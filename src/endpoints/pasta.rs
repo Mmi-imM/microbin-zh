@@ -1,11 +1,10 @@
 use crate::args::{Args, ARGS};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::pasta::Pasta;
-use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
 use crate::util::db::update;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::remove_expired;
+use crate::util::share_code::find_pasta_index_by_code;
 use crate::AppState;
 use actix_multipart::Multipart;
 use actix_web::{get, post, web, Error, HttpRequest, HttpResponse};
@@ -23,34 +22,17 @@ struct PastaTemplate<'a> {
 
 fn pastaresponse(
     data: web::Data<AppState>,
-    id: web::Path<String>,
+    id: String,
     password: String,
     skip_increment: bool,
 ) -> HttpResponse {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
-
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         if pastas[index].encrypt_server && password == *"" {
             return HttpResponse::Found()
                 .append_header((
@@ -132,7 +114,7 @@ pub async fn postpasta(
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     let password = auth::password_from_multipart(payload).await?;
-    Ok(pastaresponse(data, id, password, false))
+    Ok(pastaresponse(data, id.into_inner(), password, false))
 }
 
 #[post("/p/{id}")]
@@ -142,7 +124,7 @@ pub async fn postshortpasta(
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     let password = auth::password_from_multipart(payload).await?;
-    Ok(pastaresponse(data, id, password, false))
+    Ok(pastaresponse(data, id.into_inner(), password, false))
 }
 
 #[get("/upload/{id}")]
@@ -151,15 +133,20 @@ pub async fn getpasta(
     id: web::Path<String>,
     req: HttpRequest,
 ) -> HttpResponse {
+    let id = id.into_inner();
     let mut skip_increment = false;
 
     // the user attached an owner_token. likely they're the same user that created the pasta
     // but let's verify it just in case
     if let Some(cookie) = req.cookie("owner_token") {
-        if verify_owner_token(cookie.value(), &id) {
-            // yay, it really is the same user and their cookie isn't expired
-            // so let's skip incrementing the read count
-            skip_increment = true;
+        let mut pastas = data.pastas.lock().unwrap();
+        remove_expired(&mut pastas);
+        if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+            if verify_owner_token(cookie.value(), pastas[index].id) {
+                // yay, it really is the same user and their cookie isn't expired
+                // so let's skip incrementing the read count
+                skip_increment = true;
+            }
         }
     }
 
@@ -168,7 +155,7 @@ pub async fn getpasta(
 
 // when creating a pasta, the owner is issued a token with a 15-second expiration
 // this token is used to avoid incrementing the read count of the pasta when the owner views it
-fn verify_owner_token(token: &str, id: &str) -> bool {
+fn verify_owner_token(token: &str, expected_id: u64) -> bool {
     // decode the token
     if let Ok(numbers) = crate::util::hashids::HARSH.decode(token) {
         if numbers.len() == 2 {
@@ -177,13 +164,7 @@ fn verify_owner_token(token: &str, id: &str) -> bool {
             let timenow = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
             // verify the token is valid
-            let target_id = if ARGS.hash_ids {
-                hashid_to_u64(id).unwrap_or(0)
-            } else {
-                to_u64(id).unwrap_or(0)
-            };
-
-            if token_id == target_id && expiry > timenow {
+            if token_id == expected_id && expiry > timenow {
                 // yay, it's valid
                 return true;
             }
@@ -194,45 +175,53 @@ fn verify_owner_token(token: &str, id: &str) -> bool {
 
 #[get("/p/{id}")]
 pub async fn getshortpasta(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    pastaresponse(data, id, String::from(""), false)
+    pastaresponse(data, id.into_inner(), String::from(""), false)
 }
 
-fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
+fn urlresponse(data: web::Data<AppState>, id: String, password: String) -> HttpResponse {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
-
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        if pastas[index].encrypt_server && password == *"" {
+            return HttpResponse::Found()
+                .append_header((
+                    "Location",
+                    format!("{}/auth_url/{}", ARGS.public_path_as_str(), pastas[index].id_as_animals()),
+                ))
+                .finish();
         }
-    }
-
-    if found {
-        // increment read count
-        pastas[index].read_count += 1;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
 
         // send redirect if it's a url pasta
         if pastas[index].pasta_type == "url" {
+            let target_url = if password != *"" {
+                let res = decrypt(&pastas[index].content, &password);
+                if let Ok(url) = res {
+                    url
+                } else {
+                    return HttpResponse::Found()
+                        .append_header((
+                            "Location",
+                            format!(
+                                "{}/auth_url/{}/incorrect",
+                                ARGS.public_path_as_str(),
+                                pastas[index].id_as_animals()
+                            ),
+                        ))
+                        .finish();
+                }
+            } else {
+                pastas[index].content.to_owned()
+            };
+
+            // increment read count
+            pastas[index].read_count += 1;
+
             let response = HttpResponse::Found()
-                .append_header(("Location", String::from(&pastas[index].content)))
+                .append_header(("Location", target_url))
                 .finish();
 
             // get current unix time in seconds
@@ -267,12 +256,22 @@ fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse
 
 #[get("/url/{id}")]
 pub async fn redirecturl(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    urlresponse(data, id)
+    urlresponse(data, id.into_inner(), String::from(""))
+}
+
+#[post("/url/{id}")]
+pub async fn postredirecturl(
+    data: web::Data<AppState>,
+    id: web::Path<String>,
+    payload: Multipart,
+) -> Result<HttpResponse, Error> {
+    let password = auth::password_from_multipart(payload).await?;
+    Ok(urlresponse(data, id.into_inner(), password))
 }
 
 #[get("/u/{id}")]
 pub async fn shortredirecturl(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    urlresponse(data, id)
+    urlresponse(data, id.into_inner(), String::from(""))
 }
 
 #[get("/raw/{id}")]
@@ -283,27 +282,12 @@ pub async fn getrawpasta(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         if pastas[index].encrypt_server {
             return Ok(HttpResponse::Found()
                 .append_header((
@@ -356,27 +340,12 @@ pub async fn postrawpasta(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         if pastas[index].encrypt_server && password == *"" {
             return Ok(HttpResponse::Found()
                 .append_header((
@@ -448,4 +417,57 @@ fn decrypt(text_str: &str, key_str: &str) -> Result<String, magic_crypt::MagicCr
     let mc = new_magic_crypt!(key_str, 256);
 
     mc.decrypt_base64_to_string(text_str)
+}
+
+#[get("/{code}")]
+pub async fn root_lookup(data: web::Data<AppState>, code: web::Path<String>) -> HttpResponse {
+    let mut pastas = data.pastas.lock().unwrap();
+    let code = code.into_inner();
+
+    remove_expired(&mut pastas);
+
+    if let Some(index) = find_pasta_index_by_code(&pastas, &code) {
+        let pasta = &pastas[index];
+        let slug = pasta.id_as_animals();
+        let path = if pasta.encrypt_server {
+            if pasta.pasta_type == "url" {
+                "auth_url"
+            } else {
+                "auth"
+            }
+        } else if pasta.pasta_type == "url" {
+            "url"
+        } else {
+            "upload"
+        };
+
+        return HttpResponse::Found()
+            .append_header((
+                "Location",
+                format!("{}/{}/{}", ARGS.public_path_as_str(), path, slug),
+            ))
+            .finish();
+    }
+
+    HttpResponse::NotFound()
+        .content_type("text/html; charset=utf-8")
+        .body(ErrorTemplate { args: &ARGS }.render().unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owner_token_must_match_expected_pasta_id() {
+        let expiry = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + 60;
+        let token = crate::util::hashids::HARSH.encode(&[expiry, 42]);
+
+        assert!(verify_owner_token(&token, 42));
+        assert!(!verify_owner_token(&token, 7));
+    }
 }

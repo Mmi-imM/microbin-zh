@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 use crate::args::ARGS;
 use crate::util::auth;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::remove_expired;
-use crate::util::{animalnumbers::to_u64, misc::decrypt_file};
+use crate::util::misc::decrypt_file;
+use crate::util::share_code::find_pasta_index_by_code;
 use crate::AppState;
 use actix_multipart::Multipart;
 use actix_web::http::header;
@@ -23,29 +23,14 @@ pub async fn post_secure_file(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
     let password = auth::password_from_multipart(payload).await?;
 
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         let mut target_filename = None;
         if let Some(fname) = query.get("fname") {
              // sanitize fname? It should match one of the attachments or file.
@@ -79,7 +64,7 @@ pub async fn post_secure_file(
             let mut enc_path = format!(
                 "{}/attachments/{}/{}.enc",
                 ARGS.data_dir,
-                pastas[index].id_as_animals(),
+                pastas[index].storage_id_as_animals(),
                 filename
             );
             
@@ -88,7 +73,7 @@ pub async fn post_secure_file(
                  enc_path = format!(
                     "{}/attachments/{}/data.enc",
                     ARGS.data_dir,
-                    pastas[index].id_as_animals()
+                    pastas[index].storage_id_as_animals()
                 );
             }
 
@@ -128,27 +113,12 @@ pub async fn get_file(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id_intern = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id_intern {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         // Determine which file to serve
         let mut target_file = None;
         if let Some(fname) = query.get("fname") {
@@ -188,7 +158,7 @@ pub async fn get_file(
             let file_path = format!(
                 "{}/attachments/{}/{}",
                 ARGS.data_dir,
-                pastas[index].id_as_animals(),
+                pastas[index].storage_id_as_animals(),
                 pasta_file.name()
             );
             let file_path = PathBuf::from(file_path);

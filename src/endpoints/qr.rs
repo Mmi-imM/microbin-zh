@@ -1,9 +1,8 @@
 use crate::args::{Args, ARGS};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::pasta::Pasta;
-use crate::util::animalnumbers::to_u64;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{self, remove_expired};
+use crate::util::share_code::find_pasta_index_by_code;
 use crate::AppState;
 use actix_web::{get, web, HttpResponse};
 use askama::Template;
@@ -21,36 +20,22 @@ pub async fn getqr(data: web::Data<AppState>, id: web::Path<String>) -> HttpResp
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let u64_id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == u64_id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        let slug = pastas[index].id_as_animals();
         // generate the QR code as an SVG - if its a file or text pastas, this will point to the /upload endpoint, otherwise to the /url endpoint, essentially directly taking the user to the url stored in the pasta
         let svg = misc::string_to_qr_svg(&match pastas[index].pasta_type.as_str() {
             "url" => match ARGS.short_path.as_ref() {
-                Some(short) => format!("{short}/u/{id}"),
-                _ => format!("{}/url/{}", &ARGS.public_path_as_str(), &id),
+                Some(short) => format!("{short}/u/{slug}"),
+                _ => format!("{}/url/{}", &ARGS.public_path_as_str(), &slug),
             },
             _ => match ARGS.short_path.as_ref() {
-                Some(short) => format!("{short}/p/{id}"),
-                _ => format!("{}/upload/{}", &ARGS.public_path_as_str(), &id),
+                Some(short) => format!("{short}/p/{slug}"),
+                _ => format!("{}/upload/{}", &ARGS.public_path_as_str(), &slug),
             },
         });
 

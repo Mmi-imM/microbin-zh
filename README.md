@@ -3,6 +3,11 @@
 
 # MicroBin
 
+> This fork is a Chinese-localized MicroBin build with sharing improvements for
+> `share.312996.xyz`: custom share codes, public items that can require a
+> password, direct `/share-code` lookup, local "My Shares" history, share-code
+> search, hover help text, and automatic hiding of expired local share records.
+
 ![Build](https://github.com/szabodanika/microbin/actions/workflows/rust.yml/badge.svg)
 [![crates.io](https://img.shields.io/crates/v/microbin.svg)](https://crates.io/crates/microbin)
 [![Docker Image](https://github.com/szabodanika/microbin/actions/workflows/release.yml/badge.svg)](https://hub.docker.com/r/danielszabo99/microbin)

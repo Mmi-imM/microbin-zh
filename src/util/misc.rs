@@ -43,7 +43,7 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
                 if fs::remove_file(format!(
                     "{}/attachments/{}/{}",
                     ARGS.data_dir,
-                    p.id_as_animals(),
+                    p.storage_id_as_animals(),
                     file.name()
                 ))
                 .is_err()
@@ -55,7 +55,7 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
                 if fs::remove_dir(format!(
                     "{}/attachments/{}/",
                     ARGS.data_dir,
-                    p.id_as_animals()
+                    p.storage_id_as_animals()
                 ))
                 .is_err()
                 {
@@ -73,7 +73,7 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
     // Create a Set of valid IDs currently in the database
     let valid_ids: std::collections::HashSet<String> = pastas
         .iter()
-        .map(|p| p.id_as_animals())
+        .map(|p| p.storage_id_as_animals())
         .collect();
 
     let attachments_path = format!("{}/attachments", ARGS.data_dir);

@@ -12,17 +12,16 @@ COPY . .
 RUN CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release && \
     mkdir -p /app/microbin_data
 
-# https://github.com/GoogleContainerTools/distroless
-# nonroot user (uid:gid 65532:65532) is pre-defined in distroless images
-FROM gcr.io/distroless/cc-debian12
+FROM debian:trixie-slim
 
 WORKDIR /app
 
-# copy time zone info from build stage
-COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
-
-# copy CA certificates from build stage
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
+    apt-get -y install --no-install-recommends ca-certificates tzdata xz-utils bzip2 && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --gid 65532 nonroot && \
+    useradd --uid 65532 --gid 65532 --no-create-home --shell /usr/sbin/nologin nonroot
 
 # copy built executable
 COPY --from=build /app/target/release/microbin /usr/bin/microbin

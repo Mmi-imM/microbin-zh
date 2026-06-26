@@ -1,9 +1,8 @@
 use crate::args::Args;
 use crate::endpoints::errors::ErrorTemplate;
-use crate::util::animalnumbers::to_u64;
 use crate::util::db::update;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, encrypt, remove_expired};
+use crate::util::share_code::find_pasta_index_by_code;
 use crate::{AppState, Pasta, ARGS};
 use actix_multipart::Multipart;
 use actix_web::error::ErrorBadRequest;
@@ -25,42 +24,37 @@ struct EditTemplate<'a> {
 pub async fn get_edit(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     remove_expired(&mut pastas);
 
-    for pasta in pastas.iter() {
-        if pasta.id == id {
-            if !pasta.editable {
-                return HttpResponse::Found()
-                    .append_header(("Location", format!("{}/", ARGS.public_path_as_str())))
-                    .finish();
-            }
-
-            if pasta.encrypt_server {
-                return HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!("{}/auth_edit_private/{}", ARGS.public_path_as_str(), pasta.id_as_animals()),
-                    ))
-                    .finish();
-            }
-
-            return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-                EditTemplate {
-                    pasta,
-                    args: &ARGS,
-                    path: &String::from("edit"),
-                    status: &String::from(""),
-                }
-                .render()
-                .unwrap(),
-            );
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        let pasta = &pastas[index];
+        if !pasta.editable {
+            return HttpResponse::Found()
+                .append_header(("Location", format!("{}/", ARGS.public_path_as_str())))
+                .finish();
         }
+
+        if pasta.encrypt_server {
+            return HttpResponse::Found()
+                .append_header((
+                    "Location",
+                    format!("{}/auth_edit_private/{}", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                ))
+                .finish();
+        }
+
+        return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
+            EditTemplate {
+                pasta,
+                args: &ARGS,
+                path: &String::from("edit"),
+                status: &String::from(""),
+            }
+            .render()
+            .unwrap(),
+        );
     }
 
     HttpResponse::Ok()
@@ -77,42 +71,35 @@ pub async fn get_edit_with_status(
 
     let (id, status) = param.into_inner();
 
-    let intern_id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id).unwrap_or(0)
-    };
-
     remove_expired(&mut pastas);
 
-    for pasta in pastas.iter() {
-        if pasta.id == intern_id {
-            if !pasta.editable {
-                return HttpResponse::Found()
-                    .append_header(("Location", format!("{}/", ARGS.public_path_as_str())))
-                    .finish();
-            }
-
-            if pasta.encrypt_server {
-                return HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!("{}/auth_edit_private/{}", ARGS.public_path_as_str(), pasta.id_as_animals()),
-                    ))
-                    .finish();
-            }
-
-            return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-                EditTemplate {
-                    pasta,
-                    args: &ARGS,
-                    path: &String::from("edit"),
-                    status: &status,
-                }
-                .render()
-                .unwrap(),
-            );
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        let pasta = &pastas[index];
+        if !pasta.editable {
+            return HttpResponse::Found()
+                .append_header(("Location", format!("{}/", ARGS.public_path_as_str())))
+                .finish();
         }
+
+        if pasta.encrypt_server {
+            return HttpResponse::Found()
+                .append_header((
+                    "Location",
+                    format!("{}/auth_edit_private/{}", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                ))
+                .finish();
+        }
+
+        return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
+            EditTemplate {
+                pasta,
+                args: &ARGS,
+                path: &String::from("edit"),
+                status: &status,
+            }
+            .render()
+            .unwrap(),
+        );
     }
 
     HttpResponse::Ok()
@@ -126,11 +113,7 @@ pub async fn post_edit_private(
     id: web::Path<String>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     let mut password = String::from("");
 
@@ -148,60 +131,51 @@ pub async fn post_edit_private(
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        if !pastas[index].encrypt_client {
+            let original_content = pastas[index].content.to_owned();
 
-    if found && !pastas[index].encrypt_client {
-        let original_content = pastas[index].content.to_owned();
-
-        // decrypt content temporarily
-        if password != "" {
-            let res = decrypt(&original_content, &password);
-            if res.is_ok() {
-                pastas[index]
-                    .content
-                    .replace_range(.., res.unwrap().as_str());
-                // save pasta in database
-                update(Some(&pastas), Some(&pastas[index]));
-            } else {
-                return Ok(HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!(
-                            "{}/auth_edit_private/{}/incorrect",
-                            ARGS.public_path_as_str(),
-                            pastas[index].id_as_animals()
-                        ),
-                    ))
-                    .finish());
+            // decrypt content temporarily
+            if password != "" {
+                let res = decrypt(&original_content, &password);
+                if res.is_ok() {
+                    pastas[index]
+                        .content
+                        .replace_range(.., res.unwrap().as_str());
+                    // save pasta in database
+                    update(Some(&pastas), Some(&pastas[index]));
+                } else {
+                    return Ok(HttpResponse::Found()
+                        .append_header((
+                            "Location",
+                            format!(
+                                "{}/auth_edit_private/{}/incorrect",
+                                ARGS.public_path_as_str(),
+                                pastas[index].id_as_animals()
+                            ),
+                        ))
+                        .finish());
+                }
             }
-        }
 
-        // serve pasta in template
-        let response = HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-            EditTemplate {
-                pasta: &pastas[index],
-                args: &ARGS,
-                path: &String::from("submit_edit_private"),
-                status: &String::from(""),
+            // serve pasta in template
+            let response = HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
+                EditTemplate {
+                    pasta: &pastas[index],
+                    args: &ARGS,
+                    path: &String::from("submit_edit_private"),
+                    status: &String::from(""),
+                }
+                .render()
+                .unwrap(),
+            );
+
+            if pastas[index].content != original_content {
+                pastas[index].content = original_content;
             }
-            .render()
-            .unwrap(),
-        );
 
-        if pastas[index].content != original_content {
-            pastas[index].content = original_content;
+            return Ok(response);
         }
-
-        return Ok(response);
     }
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -214,11 +188,7 @@ pub async fn post_submit_edit_private(
     id: web::Path<String>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     let mut password = String::from("");
     let mut new_content = String::from("");
@@ -247,60 +217,60 @@ pub async fn post_submit_edit_private(
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found && pastas[index].editable && !pastas[index].encrypt_client {
-        if pastas[index].readonly {
-            let res = decrypt(pastas[index].encrypted_key.as_ref().unwrap(), &password);
-            if res.is_ok() {
-                pastas[index]
-                    .content
-                    .replace_range(.., &encrypt(&new_content, &password));
-            } else {
-                return Ok(HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!("{}/edit/{}/incorrect", ARGS.public_path_as_str(), pastas[index].id_as_animals()),
-                    ))
-                    .finish());
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
+        if pastas[index].editable && !pastas[index].encrypt_client {
+            if pastas[index].readonly {
+                let res = decrypt(pastas[index].encrypted_key.as_ref().unwrap(), &password);
+                if res.is_ok() {
+                    pastas[index]
+                        .content
+                        .replace_range(.., &encrypt(&new_content, &password));
+                    update(Some(&pastas), Some(&pastas[index]));
+                } else {
+                    return Ok(HttpResponse::Found()
+                        .append_header((
+                            "Location",
+                            format!(
+                                "{}/edit/{}/incorrect",
+                                ARGS.public_path_as_str(),
+                                pastas[index].id_as_animals()
+                            ),
+                        ))
+                        .finish());
+                }
+            } else if pastas[index].encrypt_server {
+                let res = decrypt(&pastas[index].content, &password);
+                if res.is_ok() {
+                    pastas[index]
+                        .content
+                        .replace_range(.., &encrypt(&new_content, &password));
+                    // save pasta in database
+                    update(Some(&pastas), Some(&pastas[index]));
+                } else {
+                    return Ok(HttpResponse::Found()
+                        .append_header((
+                            "Location",
+                            format!(
+                                "{}/auth_edit_private/{}/incorrect",
+                                ARGS.public_path_as_str(),
+                                pastas[index].id_as_animals()
+                            ),
+                        ))
+                        .finish());
+                }
             }
-        } else if pastas[index].private {
-            let res = decrypt(&pastas[index].content, &password);
-            if res.is_ok() {
-                pastas[index]
-                    .content
-                    .replace_range(.., &encrypt(&new_content, &password));
-                // save pasta in database
-                update(Some(&pastas), Some(&pastas[index]));
-            } else {
-                return Ok(HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!(
-                            "{}/auth_edit_private/{}/incorrect",
-                            ARGS.public_path_as_str(),
-                            pastas[index].id_as_animals()
-                        ),
-                    ))
-                    .finish());
-            }
-        }
 
-        return Ok(HttpResponse::Found()
-            .append_header((
-                "Location",
-                format!("{}/auth/{}/success", ARGS.public_path_as_str(), pastas[index].id_as_animals()),
-            ))
-            .finish());
+            return Ok(HttpResponse::Found()
+                .append_header((
+                    "Location",
+                    format!(
+                        "{}/auth/{}/success",
+                        ARGS.public_path_as_str(),
+                        pastas[index].id_as_animals()
+                    ),
+                ))
+                .finish());
+        }
     }
     Ok(HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -313,11 +283,7 @@ pub async fn post_edit(
     id: web::Path<String>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
-    let id = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     let mut new_content = String::from("");
     let mut password = String::from("");
@@ -344,51 +310,58 @@ pub async fn post_edit(
 
     remove_expired(&mut pastas);
 
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            if pasta.editable && !pasta.encrypt_client {
-                if pastas[i].readonly || pastas[i].encrypt_server {
-                    if password != "" {
-                        let res = decrypt(pastas[i].encrypted_key.as_ref().unwrap(), &password);
-                        if res.is_ok() {
-                            pastas[i].content.replace_range(.., &new_content);
-                            // save pasta in database
-                            update(Some(&pastas), Some(&pastas[i]));
+    if let Some(i) = find_pasta_index_by_code(&pastas, &id) {
+        let display_id = pastas[i].id_as_animals();
+        if pastas[i].editable && !pastas[i].encrypt_client {
+            if pastas[i].readonly || pastas[i].encrypt_server {
+                if password != "" {
+                    let res = if pastas[i].readonly {
+                        decrypt(pastas[i].encrypted_key.as_ref().unwrap(), &password)
+                    } else {
+                        decrypt(&pastas[i].content, &password)
+                    };
+                    if res.is_ok() {
+                        if pastas[i].encrypt_server && !pastas[i].readonly {
+                            pastas[i]
+                                .content
+                                .replace_range(.., &encrypt(&new_content, &password));
                         } else {
-                            return Ok(HttpResponse::Found()
-                                .append_header((
-                                    "Location",
-                                    format!("{}/edit/{}/incorrect", ARGS.public_path_as_str(), pasta.id_as_animals()),
-                                ))
-                                .finish());
+                            pastas[i].content.replace_range(.., &new_content);
                         }
+                        // save pasta in database
+                        update(Some(&pastas), Some(&pastas[i]));
                     } else {
                         return Ok(HttpResponse::Found()
                             .append_header((
                                 "Location",
-                                format!("{}/edit/{}/incorrect", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                                format!("{}/edit/{}/incorrect", ARGS.public_path_as_str(), display_id),
                             ))
                             .finish());
                     }
                 } else {
-                    pastas[i].content.replace_range(.., &new_content);
-                    // save pasta in database
-                    update(Some(&pastas), Some(&pastas[i]));
+                    return Ok(HttpResponse::Found()
+                        .append_header((
+                            "Location",
+                            format!("{}/edit/{}/incorrect", ARGS.public_path_as_str(), display_id),
+                        ))
+                        .finish());
                 }
-
-                return Ok(HttpResponse::Found()
-                    .append_header((
-                        "Location",
-                        format!(
-                            "{}/upload/{}",
-                            ARGS.public_path_as_str(),
-                            pastas[i].id_as_animals()
-                        ),
-                    ))
-                    .finish());
             } else {
-                break;
+                pastas[i].content.replace_range(.., &new_content);
+                // save pasta in database
+                update(Some(&pastas), Some(&pastas[i]));
             }
+
+            return Ok(HttpResponse::Found()
+                .append_header((
+                    "Location",
+                    format!("{}/upload/{}", ARGS.public_path_as_str(), display_id),
+                ))
+                .finish());
+        } else {
+            return Ok(HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(ErrorTemplate { args: &ARGS }.render().unwrap()));
         }
     }
 

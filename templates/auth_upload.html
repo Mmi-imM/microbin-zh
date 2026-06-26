@@ -1,46 +1,45 @@
 {% include "header.html" %}
 
-{% if encrypt_client %}
-
 <form id="auth-form" method="POST" action="{{ args.public_path_as_str() }}/{{path}}/{{id}}" enctype="multipart/form-data">
   {% if status == "success" %}
-  <b>
-    Success!
-  </b> <br>
+  <b>创建成功，请输入密码查看。</b><br>
   {% endif %}
-  <label for="password"> Please enter the
-    password to access or modify this upload. <sup>
-      <a href="{{ args.public_path_as_str() }}/guide#encryption">?</a></sup></label>
-  <input id="password-field" required placeholder="Password" type="password" autocomplete="off">
+
+  <label for="password-field" style="margin-bottom: 0.5rem;">
+    请输入密码以访问或修改该分享。
+    <sup><a href="{{ args.public_path_as_str() }}/guide#encryption">?</a></sup>
+  </label>
+
+  {% if encrypt_client %}
+  <input id="password-field" required placeholder="密码" type="password" autocomplete="off">
   <input id="password-hidden" name="password" type="hidden">
-  <button>Okay</button>
+  {% else %}
+  <input id="password-field" required placeholder="密码" name="password" type="password" autocomplete="off" />
+  {% endif %}
+
+  <button>确认</button>
 
   {% if status == "incorrect" %}
-  <b>
-    Incorrect password.
-  </b>
+  <b>密码不正确。</b>
   {% endif %}
 </form>
 
+{% if encrypt_client %}
 <script>
-
   const form = document.getElementById("auth-form");
   const passwordField = document.getElementById("password-field");
   const passwordHiddenField = document.getElementById("password-hidden");
 
   form.onsubmit = function () {
-
     if (passwordField.value.trim() == "") {
       passwordField.focus();
       return false;
     }
 
-    let key = decryptWithPassword(passwordField.value, "{{ encrypted_key }}");
-
+    const key = decryptWithPassword(passwordField.value, "{{ encrypted_key }}");
     if (key) {
       passwordHiddenField.value = key;
     }
-
   };
 
   function decryptWithPassword(password, encryptedHex) {
@@ -52,59 +51,25 @@
 
     if (res.endsWith("!0K")) {
       return res.substring(0, res.length - "!0K".length);
-    } else {
-      return null;
     }
+    return null;
   }
 </script>
-
 {% else %}
-
-<form id="auth-form" method="POST" action="{{ args.public_path_as_str() }}/{{path}}/{{id}}" enctype="multipart/form-data">
-  {% if status == "success" %}
-  <b>
-    Success!
-  </b> <br>
-  {% endif %}
-  <label for="password" style="margin-bottom: 0.5rem;"> Please enter the
-    password to access or modify this upload. <sup>
-      <a href="{{ args.public_path_as_str() }}/guide#encryption">?</a></sup></label>
-  <input id="password-field" placeholder="Password" name="password" type="password" autocomplete="off" />
-  <button>Okay</button>
-
-  {% if status == "incorrect" %}
-  <b>
-    Incorrect password.
-  </b>
-  {% endif %}
-</form>
-
-
 <script>
-
   const form = document.getElementById("auth-form");
   const passwordField = document.getElementById("password-field");
 
   form.onsubmit = function () {
-
     if (passwordField.value.trim() == "") {
       passwordField.focus();
       return false;
     }
-
-    let key = decryptWithPassword(passwordField.value, "{{ encrypted_key }}");
-
-    if (key) {
-      passwordHiddenField.value = key;
-    }
-
   };
-
 </script>
-
 {% endif %}
 
-{% include "footer.html" %} {% if !args.pure_html %}
+{% if !args.pure_html %}
 <style>
   #auth-form {
     background-color: var(--background-alt);
@@ -117,3 +82,5 @@
   }
 </style>
 {% endif %}
+
+{% include "footer.html" %}

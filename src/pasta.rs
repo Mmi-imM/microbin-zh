@@ -73,6 +73,8 @@ impl PastaFile {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pasta {
     pub id: u64,
+    #[serde(default)]
+    pub custom_code: Option<String>,
     pub content: String,
     pub file: Option<PastaFile>,
     #[serde(default)]
@@ -94,11 +96,33 @@ pub struct Pasta {
 
 impl Pasta {
     pub fn id_as_animals(&self) -> String {
+        if let Some(custom_code) = &self.custom_code {
+            if !custom_code.trim().is_empty() {
+                return custom_code.to_string();
+            }
+        }
+
+        self.generated_id_as_animals()
+    }
+
+    pub fn generated_id_as_animals(&self) -> String {
         if ARGS.hash_ids {
             to_hashids(self.id)
         } else {
             to_animal_names(self.id)
         }
+    }
+
+    pub fn storage_id_as_animals(&self) -> String {
+        self.generated_id_as_animals()
+    }
+
+    pub fn matches_share_code(&self, code: &str) -> bool {
+        self.id_as_animals() == code || self.generated_id_as_animals() == code
+    }
+
+    pub fn is_public_password_protected(&self) -> bool {
+        self.encrypt_server && !self.private
     }
 
     pub fn has_file(&self) -> bool {

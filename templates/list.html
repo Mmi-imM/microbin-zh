@@ -1,194 +1,245 @@
 {% include "header.html" %}
 
+<div id="my-shares"></div>
+
+<div class="list-toolbar">
+    <label for="share-search">搜索分享码</label>
+    <input id="share-search" type="search" placeholder="输入分享码，例如 1234 或 work-note" autocomplete="off" />
+</div>
 
 {% if pastas.is_empty() %}
 <br>
 <p>
-    No uploads yet. 😔 Create one <a href="{{ args.public_path_as_str() }}/">here</a>.
+    暂无内容。你可以<a href="{{ args.public_path_as_str() }}/">新建一个</a>。
 </p>
 <br>
 {%- else %}
-<h3>Uploads</h3>
+<h3>公开内容</h3>
 <div style="width: 100%; overflow-x: auto;">
     {% if args.pure_html %}
-    <table border="1" style="width: 100%; min-width: 720px; white-space: nowrap;">
-        {% else %}
-        <table style="width: 100%; min-width: 720px;">
-            {% endif %}
-            <thead>
-                <th style="width: 25%">
-                    Key
-                </th>
-                <th style="width: 10%">
-                </th>
-                <th style="width: 15%">
-                    Created
-                </th>
-                <th style="width: 15%">
-                    Expiration
-                </th>
-                <th style="width: 15%">
-                    Contents
-                </th>
-
-                <th style="width: 10%">
-                </th>
-                <th style="width: 10%">
-                </th>
-            </thead>
-            <tbody>
-                {% for pasta in pastas %}
-                {% if pasta.pasta_type == "text" && !pasta.private %}
-                <tr>
-                    <td>
-                        <a
-                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
-                    </td>
-                    <td>
-                        {% if args.public_path_as_str() != "" %}
-                        {% if args.short_path_as_str() == "" %}
-                        <a style="margin-right:1rem; cursor: pointer;" class="copy-button" null
-                            data-url="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">Copy</a>
-                        {% else %}
-                        <a style="margin-right:1rem; cursor: pointer;" class="copy-button" data-url="{{ args.short_path_as_str()
-                        }}/p/{{pasta.id_as_animals()}}">Copy</a>
-                        {% endif %}
+    <table border="1" class="share-table" style="width: 100%; min-width: 760px; white-space: nowrap;">
+    {% else %}
+    <table class="share-table" style="width: 100%; min-width: 760px;">
+    {% endif %}
+        <thead>
+            <tr>
+                <th style="width: 22%">分享码</th>
+                <th style="width: 12%">复制</th>
+                <th style="width: 15%">创建</th>
+                <th style="width: 15%">过期</th>
+                <th style="width: 18%">内容</th>
+                <th style="width: 10%">编辑</th>
+                <th style="width: 8%">删除</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pasta in pastas %}
+            {% if pasta.pasta_type == "text" && !pasta.private %}
+            <tr data-share-code="{{pasta.id_as_animals()}}">
+                <td>
+                    <a href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                    {% if pasta.is_public_password_protected() %}
+                    <span class="privacy-badge">需要密码</span>
+                    {%- endif %}
+                </td>
+                <td>
+                    {% if args.public_path_as_str() != "" %}
+                    {% if args.short_path_as_str() == "" %}
+                    <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
+                        data-url="{{ args.public_path_as_str()}}/{{pasta.id_as_animals()}}">复制</a>
+                    {% else %}
+                    <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
+                        data-url="{{ args.short_path_as_str()}}/p/{{pasta.id_as_animals()}}">复制</a>
+                    {% endif %}
+                    {%- endif %}
+                </td>
+                <td>{{pasta.created_as_string()}}</td>
+                <td>{{pasta.expiration_as_string()}}</td>
+                <td>
+                    {% if pasta.content != "" %}
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals()}}">文本</a>
+                    {%- endif %}
+                    {% if pasta.attachments.is_some() %}
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">
+                        {{ 1 + pasta.attachments.as_ref().unwrap().len() }} 个文件
+                    </a>
+                    {% else if pasta.file.is_some() %}
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals()}}">
+                        {% if pasta.file.as_ref().unwrap().is_image() %}
+                        图片
+                        {%- else if pasta.file.as_ref().unwrap().is_video() %}
+                        视频
+                        {%- else %}
+                        文件
                         {%- endif %}
-                    </td>
-                    <td>
-                        {{pasta.created_as_string()}}
-                    </td>
-                    <td>
-                        {{pasta.expiration_as_string()}}
-                    </td>
-                    <td>
-                        {% if pasta.content != "" %}
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals()}}">Text</a>
-                        {%- endif %}
-                        {% if pasta.attachments.is_some() %}
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">
-                            {{ 1 + pasta.attachments.as_ref().unwrap().len() }} Files
-                        </a>
-                        {% else if pasta.file.is_some() %}
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals()}}">
-                            {% if pasta.file.as_ref().unwrap().is_image() %}
-                            Image
-                            {%- else if pasta.file.as_ref().unwrap().is_video() %}
-                            Video
-                            {%- else %}
-                            File
-                            {%- endif %}
-                        </a>
-                        {%- endif %}
-                    </td>
-
-                    <td>
-                        {% if pasta.editable %}
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">Edit</a>
-                        {%- endif %}
-                    </td>
-                    <td>
-                        {% if pasta.editable || pasta.readonly || pasta.encrypt_server %}
-                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
-                        {%- endif %}
-                    </td>
-                </tr>
-                {%- endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-        <br>
-        <h3>URL Redirects</h3>
-        {% if args.pure_html %}
-        <table border="1" style="width: 100%; min-width: 720px; ">
-            {% else %}
-            <table style="width: 100%; min-width: 720px;">
-                {% endif %}
-                <thead>
-                    <th style=" width: 25%">
-                        Key
-                    </th>
-                    <th style="width: 10%">
-                    </th>
-                    <th style="width: 15%">
-                        Created
-                    </th>
-                    <th style="width: 15%">
-                        Expiration
-                    </th>
-                    <th style="width: 15%">
-                    </th>
-                    <th style="width: 10%">
-                    </th>
-                    <th style="width: 10%">
-                    </th>
-                </thead>
-                {% for pasta in pastas %}
-                {% if pasta.pasta_type == "url" && !pasta.private %}
-                <tr>
-                    <td>
-                        <a
-                            href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
-                    </td>
-                    <td>
-                        {% if args.short_path_as_str() == "" %}
-                        <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
-                            data-url="{{ args.public_path_as_str()                    }}/url/{{pasta.id_as_animals()}}">Copy</a>
-                        {% else %}
-                        <a style="margin-right:1rem; cursor: pointer;" class="copy-button" data-url="{{ args.short_path_as_str()
-                        }}/u/{{pasta.id_as_animals()}}">Copy</a>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{pasta.created_as_string()}}
-                    </td>
-                    <td>
-                        {{pasta.expiration_as_string()}}
-                    </td>
-                    <td>
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals()}}">Redirect</a>
-                    </td>
-                    <td>
-                        {% if pasta.editable %}
-                        <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">Edit</a>
-                        {%- endif %}
-                    </td>
-                    <td>
-                        {% if pasta.editable || pasta.readonly || pasta.encrypt_server %}
-                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
-                        {%- endif %}
-                    </td>
-                </tr>
-                {%- endif %}
-                {% endfor %}
-                </tbody>
-            </table>
-            <br>
+                    </a>
+                    {%- endif %}
+                </td>
+                <td>
+                    {% if pasta.editable %}
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">编辑</a>
+                    {%- endif %}
+                </td>
+                <td>
+                    {% if pasta.editable || pasta.readonly || pasta.encrypt_server %}
+                    <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">删除</a>
+                    {%- endif %}
+                </td>
+            </tr>
             {%- endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <br>
+    <h3>公开跳转</h3>
+    {% if args.pure_html %}
+    <table border="1" class="share-table" style="width: 100%; min-width: 760px;">
+    {% else %}
+    <table class="share-table" style="width: 100%; min-width: 760px;">
+    {% endif %}
+        <thead>
+            <tr>
+                <th style="width: 22%">分享码</th>
+                <th style="width: 12%">复制</th>
+                <th style="width: 15%">创建</th>
+                <th style="width: 15%">过期</th>
+                <th style="width: 18%">操作</th>
+                <th style="width: 10%">编辑</th>
+                <th style="width: 8%">删除</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pasta in pastas %}
+            {% if pasta.pasta_type == "url" && !pasta.private %}
+            <tr data-share-code="{{pasta.id_as_animals()}}">
+                <td>
+                    <a href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                    {% if pasta.is_public_password_protected() %}
+                    <span class="privacy-badge">需要密码</span>
+                    {%- endif %}
+                </td>
+                <td>
+                    {% if args.short_path_as_str() == "" %}
+                    <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
+                        data-url="{{ args.public_path_as_str() }}/{{pasta.id_as_animals()}}">复制</a>
+                    {% else %}
+                    <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
+                        data-url="{{ args.short_path_as_str() }}/u/{{pasta.id_as_animals()}}">复制</a>
+                    {% endif %}
+                </td>
+                <td>{{pasta.created_as_string()}}</td>
+                <td>{{pasta.expiration_as_string()}}</td>
+                <td>
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals()}}">跳转</a>
+                </td>
+                <td>
+                    {% if pasta.editable %}
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">编辑</a>
+                    {%- endif %}
+                </td>
+                <td>
+                    {% if pasta.editable || pasta.readonly || pasta.encrypt_server %}
+                    <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">删除</a>
+                    {%- endif %}
+                </td>
+            </tr>
+            {%- endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    <p id="share-search-empty" style="display: none;">没有匹配的分享码。</p>
+    <br>
+{%- endif %}
 </div>
 
+<script type="text/javascript" src="{{ args.public_path_as_str() }}/static/my-shares.js"></script>
 <script>
-    const copyURLBtns = document.getElementsByClassName("copy-button");
-
-    for (var i = 0; i < copyURLBtns.length; i++) {
-        copyURLBtns.item(i).addEventListener("click", event => {
-            event.srcElement
-            navigator.clipboard.writeText(event.srcElement.getAttribute("data-url"))
-            event.srcElement.innerHTML = "Copied"
-            setTimeout(() => {
-                event.srcElement.innerHTML = "Copy"
-            }, 1000)
-        })
+    if (window.MicrobinMyShares) {
+        window.MicrobinMyShares.renderShares(document.getElementById("my-shares"), {
+            publicPath: "{{ args.public_path_as_str() }}",
+        });
     }
 
+    const copyURLBtns = document.getElementsByClassName("copy-button");
+    for (var i = 0; i < copyURLBtns.length; i++) {
+        copyURLBtns.item(i).addEventListener("click", event => {
+            navigator.clipboard.writeText(event.srcElement.getAttribute("data-url"));
+            event.srcElement.innerHTML = "已复制";
+            setTimeout(() => {
+                event.srcElement.innerHTML = "复制";
+            }, 1000);
+        });
+    }
+
+    const searchInput = document.getElementById("share-search");
+    const emptyMessage = document.getElementById("share-search-empty");
+    searchInput.addEventListener("input", () => {
+        const needle = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+
+        document.querySelectorAll(".share-table tbody tr").forEach(row => {
+            const code = (row.getAttribute("data-share-code") || "").toLowerCase();
+            const match = !needle || code.includes(needle);
+            row.style.display = match ? "" : "none";
+            if (match) visible += 1;
+        });
+
+        if (emptyMessage) {
+            emptyMessage.style.display = visible === 0 ? "" : "none";
+        }
+    });
 </script>
+
 <style>
+    .list-toolbar {
+        display: grid;
+        gap: 0.35rem;
+        margin: 1rem 0 1.25rem;
+    }
+
+    #share-search {
+        max-width: 360px;
+    }
+
+    .privacy-badge {
+        display: inline-block;
+        margin-left: 0.35rem;
+        padding: 0.1rem 0.35rem;
+        border-radius: 999px;
+        background: rgba(41, 117, 210, 0.12);
+        color: #1d4f8f;
+        font-size: 0.75rem;
+    }
+
+    .my-shares-panel {
+        border: 1px solid rgba(100, 116, 139, 0.25);
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, rgba(245, 248, 255, 0.92), rgba(255, 255, 255, 0.72));
+        box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
+    }
+
+    .my-shares-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .my-shares-header h3 {
+        margin-top: 0;
+        margin-bottom: 0.25rem;
+    }
+
+    .my-shares-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
     .copy-url-button {
         font-size: small;
         padding: 4px;

@@ -3,6 +3,7 @@ use crate::util::animalnumbers::to_animal_names;
 use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
+use crate::util::share_code::{is_valid_custom_share_code, share_code_exists};
 use crate::args::{Args, ARGS};
 use crate::AppState;
 use actix_multipart::Multipart;
@@ -41,7 +42,7 @@ pub async fn index() -> impl Responder {
     )
 }
 
-#[get("/{status}")]
+#[get("/{status:success|incorrect}")]
 pub async fn index_with_status(param: web::Path<String>) -> HttpResponse {
     let status = param.into_inner();
 
@@ -123,6 +124,7 @@ pub async fn create(
 
     let mut new_pasta = Pasta {
         id: rand::thread_rng().gen::<u16>() as u64,
+        custom_code: None,
         content: String::from(""),
         file: None,
         extension: String::from(""),
@@ -168,6 +170,7 @@ pub async fn create(
                     let privacy = std::str::from_utf8(&chunk).unwrap();
                     new_pasta.private = match privacy {
                         "public" => false,
+                        "public_password" => false,
                         _ => true,
                     };
                     new_pasta.readonly = match privacy {
@@ -180,10 +183,27 @@ pub async fn create(
                     };
                     new_pasta.encrypt_server = match privacy {
                         "private" => true,
+                        "public_password" => true,
                         "secret" => true,
                         _ => false,
                     };
                 }
+            }
+            "custom_code" => {
+                let mut custom_code = String::new();
+                while let Some(chunk) = field.try_next().await? {
+                    custom_code.push_str(std::str::from_utf8(&chunk).unwrap());
+                }
+                let custom_code = custom_code.trim();
+                if !custom_code.is_empty() {
+                    if !is_valid_custom_share_code(custom_code) {
+                        return Err(ErrorBadRequest(
+                            "分享码只能使用 3-64 位字母、数字、短横线或下划线，且不能使用系统路径。",
+                        ));
+                    }
+                    new_pasta.custom_code = Some(custom_code.to_string());
+                }
+                continue;
             }
             "plain_key" => {
                 while let Some(chunk) = field.try_next().await? {
@@ -275,7 +295,7 @@ pub async fn create(
                 if let Err(e) = std::fs::create_dir_all(format!(
                     "{}/attachments/{}",
                     ARGS.data_dir,
-                    &new_pasta.id_as_animals()
+                    &new_pasta.storage_id_as_animals()
                 )) {
                     log::error!("Failed to create directory: {}", e);
                     return Err(actix_web::error::ErrorInternalServerError(
@@ -286,7 +306,7 @@ pub async fn create(
                 let filepath = format!(
                     "{}/attachments/{}/{}",
                     ARGS.data_dir,
-                    &new_pasta.id_as_animals(),
+                    &new_pasta.storage_id_as_animals(),
                     &file.name()
                 );
 
@@ -360,7 +380,7 @@ pub async fn create(
              let filepath = format!(
                 "{}/attachments/{}/{}",
                 ARGS.data_dir,
-                &new_pasta.id_as_animals(),
+                &new_pasta.storage_id_as_animals(),
                 &file.name()
             );
             if new_pasta.encrypt_client {
@@ -372,9 +392,16 @@ pub async fn create(
     }
 
     let encrypt_server = new_pasta.encrypt_server;
+    let pasta_type = new_pasta.pasta_type.clone();
 
     {
         let mut pastas = data.pastas.lock().unwrap();
+        if let Some(custom_code) = &new_pasta.custom_code {
+            if share_code_exists(&pastas, custom_code) {
+                return Err(ErrorBadRequest("分享码已存在，请换一个。"));
+            }
+        }
+
         pastas.push(new_pasta);
 
         for (_, pasta) in pastas.iter().enumerate() {
@@ -384,15 +411,27 @@ pub async fn create(
         }
     }
 
-    let slug = if ARGS.hash_ids {
+    let generated_slug = if ARGS.hash_ids {
         to_hashids(id)
     } else {
         to_animal_names(id)
     };
+    let slug = {
+        let pastas = data.pastas.lock().unwrap();
+        pastas
+            .iter()
+            .find(|pasta| pasta.id == id)
+            .map(|pasta| pasta.id_as_animals())
+            .unwrap_or(generated_slug)
+    };
 
     if encrypt_server {
+        let auth_path = if pasta_type == "url" { "auth_url" } else { "auth" };
         Ok(HttpResponse::Found()
-            .append_header(("Location", format!("{}/auth/{}/success", ARGS.public_path_as_str(), slug)))
+            .append_header((
+                "Location",
+                format!("{}/{}/{}/success", ARGS.public_path_as_str(), auth_path, slug),
+            ))
             .finish())
     } else {
         // Generate time-limited token for initial view using Hashids

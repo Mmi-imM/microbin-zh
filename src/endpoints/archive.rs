@@ -1,7 +1,6 @@
 use crate::args::ARGS;
-use crate::util::animalnumbers::to_u64;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::remove_expired;
+use crate::util::share_code::find_pasta_index_by_code;
 use crate::AppState;
 use actix_web::{get, web, Error, HttpResponse};
 use std::fs::File;
@@ -18,27 +17,12 @@ pub async fn get_archive(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
-    let id_intern = if ARGS.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
-    } else {
-        to_u64(&id.into_inner()).unwrap_or(0)
-    };
+    let id = id.into_inner();
 
     // remove expired pastas (including this one if needed)
     remove_expired(&mut pastas);
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id_intern {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
+    if let Some(index) = find_pasta_index_by_code(&pastas, &id) {
         let pasta = &pastas[index];
 
         // Create a temporary file for the zip
@@ -66,14 +50,14 @@ pub async fn get_archive(
                  format!(
                     "{}/attachments/{}/{}.enc",
                     ARGS.data_dir,
-                    pasta.id_as_animals(),
+                    pasta.storage_id_as_animals(),
                     file.name()
                 )
             } else {
                  format!(
                     "{}/attachments/{}/{}",
                     ARGS.data_dir,
-                    pasta.id_as_animals(),
+                    pasta.storage_id_as_animals(),
                     file.name()
                 )
             };
@@ -84,7 +68,7 @@ pub async fn get_archive(
                   final_path = PathBuf::from(format!(
                     "{}/attachments/{}/data.enc",
                     ARGS.data_dir,
-                    pasta.id_as_animals()
+                    pasta.storage_id_as_animals()
                 ));
              }
 
@@ -105,14 +89,14 @@ pub async fn get_archive(
                     format!(
                         "{}/attachments/{}/{}.enc",
                         ARGS.data_dir,
-                        pasta.id_as_animals(),
+                        pasta.storage_id_as_animals(),
                         file.name()
                     )
                 } else {
                     format!(
                         "{}/attachments/{}/{}",
                         ARGS.data_dir,
-                        pasta.id_as_animals(),
+                        pasta.storage_id_as_animals(),
                         file.name()
                     )
                 };

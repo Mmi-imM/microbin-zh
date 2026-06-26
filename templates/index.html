@@ -3,15 +3,15 @@
     <br>
     <div id="settings">
         <div>
-            <label for="expiration">Expiration <sup> <a href="{{ args.public_path_as_str() }}/guide#expiration">?</a></sup></label><br>
+            <label for="expiration">有效期 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#expiration" data-tip="到期后服务端会自动删除该分享。">?</a></sup></label><br>
             <select style="width: 100%;" name="expiration" id="expiration">
-                <optgroup label="Expire after">
+                <optgroup label="过期时间">
                     {% if max_expiry_index >= 0 %}
                     {% if args.default_expiry == "1min" %}
                     <option selected value="1min">
                         {%- else %}
                     <option value="1min">
-                        {%- endif %} 1 minute
+                        {%- endif %} 1 分钟
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 1 %}
@@ -19,7 +19,7 @@
                     <option selected value="10min">
                         {%- else %}
                     <option value="10min">
-                        {%- endif %} 10 minutes
+                        {%- endif %} 10 分钟
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 2 %}
@@ -27,7 +27,7 @@
                     <option selected value="1hour">
                         {%- else %}
                     <option value="1hour">
-                        {%- endif %} 1 hour
+                        {%- endif %} 1 小时
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 3 %}
@@ -35,7 +35,7 @@
                     <option selected value="24hour">
                         {%- else %}
                     <option value="24hour">
-                        {%- endif %} 24 hours
+                        {%- endif %} 24 小时
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 4 %}
@@ -43,7 +43,7 @@
                     <option selected value="3days">
                         {%- else %}
                     <option value="3days">
-                        {%- endif %} 3 days
+                        {%- endif %} 3 天
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 5 %}
@@ -51,7 +51,7 @@
                     <option selected value="1week">
                         {%- else %}
                     <option value="1week">
-                        {%- endif %} 1 week
+                        {%- endif %} 1 周
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 6 %}
@@ -59,7 +59,7 @@
                     <option selected value="1month">
                         {%- else %}
                     <option value="1month">
-                        {%- endif %} 1 month
+                        {%- endif %} 1 个月
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 7 %}
@@ -67,7 +67,7 @@
                     <option selected value="6months">
                         {%- else %}
                     <option value="6months">
-                        {%- endif %} 6 months
+                        {%- endif %} 6 个月
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 8 %}
@@ -75,7 +75,7 @@
                     <option selected value="1year">
                         {%- else %}
                     <option value="1year">
-                        {%- endif %} 1 year
+                        {%- endif %} 1 年
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 9 %}
@@ -83,7 +83,7 @@
                     <option selected value="2years">
                         {%- else %}
                     <option value="2years">
-                        {%- endif %} 2 years
+                        {%- endif %} 2 年
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 10 %}
@@ -91,7 +91,7 @@
                     <option selected value="4years">
                         {%- else %}
                     <option value="4years">
-                        {%- endif %} 4 years
+                        {%- endif %} 4 年
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 11 %}
@@ -99,7 +99,7 @@
                     <option selected value="8years">
                         {%- else %}
                     <option value="8years">
-                        {%- endif %} 8 years
+                        {%- endif %} 8 年
                     </option>
                     {%- endif %}
                     {% if max_expiry_index >= 12 %}
@@ -107,7 +107,7 @@
                     <option selected value="16years">
                         {%- else %}
                     <option value="16years">
-                        {%- endif %} 16 years
+                        {%- endif %} 16 年
                     </option>
                     {%- endif %}
                 </optgroup>
@@ -115,51 +115,51 @@
                 "never" %}
                 <option selected value="never">
                     {%- else %}
-                <option value="never">{%- endif %} Never Expire
+                <option value="never">{%- endif %} 永不过期
                 </option>
                 {%- endif %}
             </select>
         </div>
         {% if args.enable_burn_after %}
         <div>
-            <label for="burn_after">Burn After <sup> <a href="{{ args.public_path_as_str() }}/guide#burn-after">?</a></sup></label><br>
+            <label for="burn_after">阅后销毁 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#burn-after" data-tip="读取次数达到限制后，服务端会删除该分享。">?</a></sup></label><br>
             <select style="width: 100%;" name="burn_after" id="burn_after">
                 {% if args.default_burn_after == 0 %}
                 <option selected value="0">
                     {%- else %}
                 <option value="0">
-                    {%- endif %} No Limit
+                    {%- endif %} 不限制
                 </option>
-                <optgroup label="Burn after">
+                <optgroup label="读取次数达到后销毁">
                     {% if args.default_burn_after == 1 %}
                     <option selected value="1">
                         {%- else %}
                     <option value="1">
-                        {%- endif %} First Read
+                        {%- endif %} 第 1 次读取
                     </option>
                     {% if args.default_burn_after == 10 %}
                     <option selected value="10">
                         {%- else %}
                     <option value="10">
-                        {%- endif %} 10th Read
+                        {%- endif %} 第 10 次读取
                     </option>
                     {% if args.default_burn_after == 100 %}
                     <option selected value="100">
                         {%- else %}
                     <option value="100">
-                        {%- endif %} 100th Read
+                        {%- endif %} 第 100 次读取
                     </option>
                     {% if args.default_burn_after == 1000 %}
                     <option selected value="1000">
                         {%- else %}
                     <option value="1000">
-                        {%- endif %} 1000th Read
+                        {%- endif %} 第 1000 次读取
                     </option>
                     {% if args.default_burn_after == 10000 %}
                     <option selected value="10000">
                         {%- else %}
                     <option value="10000">
-                        {%- endif %} 10000th Read
+                        {%- endif %} 第 10000 次读取
                     </option>
                 </optgroup>
             </select>
@@ -168,13 +168,13 @@
 
         {% if args.highlightsyntax %}
         <div>
-            <label for="syntax_highlight">Syntax <sup> <a href="{{ args.public_path_as_str() }}/guide#syntax">?</a></sup></label><br>
+            <label for="syntax_highlight">语法高亮 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#syntax" data-tip="选择代码语言后，查看页面会高亮显示内容。">?</a></sup></label><br>
             <select style="width: 100%;" name="syntax_highlight" id="syntax_highlight">
-                <option value="none">None</option>
-                <optgroup label="Client-Rendered">
-                    <option value="auto">Automatic</option>
+                <option value="none">无</option>
+                <optgroup label="浏览器渲染">
+                    <option value="auto">自动识别</option>
                 </optgroup>
-                <optgroup label="Server-Rendered">
+                <optgroup label="服务器渲染">
                     <option value="sh">Bash Shell</option>
                     <option value="c">C</option>
                     <option value="cpp">C++</option>
@@ -210,26 +210,27 @@
 
         {% if args.encryption_client_side || args.encryption_server_side || args.enable_readonly || args.private %}
         <div>
-            <label for="privacy">Privacy <sup> <a href="{{ args.public_path_as_str() }}/guide#privacy">?</a></sup></label><br>
+            <label for="privacy">可见性 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#privacy" data-tip="公开会出现在列表；公开但需要密码也会出现在列表，但查看需输入密码。">?</a></sup></label><br>
             <select style="width: 100%;" name="privacy" id="privacy">
-                <optgroup label="Unencrypted (no password)">
-                    <option value="public"{% if default_privacy_value == "public" %} selected{% endif %}>Public</option>
+                <optgroup label="不加密">
+                    <option value="public"{% if default_privacy_value == "public" %} selected{% endif %}>公开</option>
                     {% if args.private %}
-                    <option value="unlisted"{% if default_privacy_value == "unlisted" %} selected{% endif %}>Unlisted</option>
+                    <option value="unlisted"{% if default_privacy_value == "unlisted" %} selected{% endif %}>仅链接可见</option>
                     {%- endif %}
                 </optgroup>
                 {% if args.enable_readonly %}
-                <optgroup label="Unencrypted (protected)">
-                    <option value="readonly"{% if default_privacy_value == "readonly" %} selected{% endif %}>Read-only</option>
+                <optgroup label="不加密但受保护">
+                    <option value="readonly"{% if default_privacy_value == "readonly" %} selected{% endif %}>只读</option>
                 </optgroup>
                 {%- endif %}
                 {% if args.encryption_client_side || args.encryption_server_side %}
-                <optgroup label="Encrypted">
+                <optgroup label="加密">
                     {% if args.encryption_server_side %}
-                    <option value="private"{% if default_privacy_value == "private" %} selected{% endif %}>Private</option>
+                    <option value="public_password"{% if default_privacy_value == "public_password" %} selected{% endif %}>公开但需要密码</option>
+                    <option value="private"{% if default_privacy_value == "private" %} selected{% endif %}>私密</option>
                     {%- endif %}
                     {% if args.encryption_client_side%}
-                    <option value="secret"{% if default_privacy_value == "secret" %} selected{% endif %}>Secret</option>
+                    <option value="secret"{% if default_privacy_value == "secret" %} selected{% endif %}>本地加密</option>
                     {%- endif %}
                 </optgroup>
                 {%- endif %}
@@ -239,21 +240,26 @@
 
         {% if args.encryption_client_side || args.encryption_server_side || args.enable_readonly %}
         <div>
-            <label for="password_field">Password <sup><a href="{{ args.public_path_as_str() }}/guide#password">?</a></sup></label><br>
+            <label for="password_field">密码 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#password" data-tip="用于查看私密/公开密码分享，或保护只读分享。">?</a></sup></label><br>
             <input style="width: 130px; height: 28px;" type="password" id="password_field" autocomplete="off" />
         </div>
         {%- endif %}
 
+        <div>
+            <label for="custom_code">分享码 <sup><a class="help-tip" href="{{ args.public_path_as_str() }}/guide#custom-code" data-tip="可选。填写后可用 /分享码 直接访问，例如 /team-note。">?</a></sup></label><br>
+            <input style="width: 145px; height: 28px;" name="custom_code" id="custom_code" placeholder="例如 work-note-1" pattern="[A-Za-z0-9_-]{3,64}" autocomplete="off" />
+        </div>
+
     </div>
 
-    <label>Content</label>
+    <label>内容</label>
     <textarea style="width: 100%; min-height: 100px; margin-bottom: 2em; font-family: monospace;" id="content-input"
-        autofocus placeholder="Type something here."></textarea>
+        autofocus placeholder="在这里输入要分享的内容"></textarea>
     <div id="buttons">
         <div id="file-select">
             {% if !args.no_file_upload %}
             <label for="file" id="attach-file-button-label">
-                <a role="button" id="attach-file-button">Select or drop file attachment</a>
+                <a role="button" id="attach-file-button">选择文件或拖拽到这里</a>
             </label>
             <br>
             <input type="file" id="file" name="file" multiple />
@@ -262,16 +268,16 @@
         <div>
             {% if args.readonly %}
             {% if status == "incorrect" %}
-            <input type="password" id="uploader_password" name="uploader_password" placeholder="Incorrect password!"
+            <input type="password" id="uploader_password" name="uploader_password" placeholder="密码不正确"
                 style="width: 100%; background-color: rgba(255, 0, 0, 0.137);" />
             {% else %}
-            <input type="password" id="uploader_password" name="uploader_password" placeholder="Uploader Password"
+            <input type="password" id="uploader_password" name="uploader_password" placeholder="上传密码"
                 style="width: 100%;" />
             {% endif %}
             {% endif %}
         </div>
         <div>
-            <input type="submit" id="submit-button"  value="Save"
+            <input type="submit" id="submit-button"  value="保存"
                 style="width: 100%; background-color: #2975D2; color: white;" />
         </div>
     </div>
@@ -287,6 +293,7 @@
 <br>
 <br>
 <script type="text/javascript" src="{{ args.public_path_as_str() }}/static/jszip.min.js"></script>
+<script type="text/javascript" src="{{ args.public_path_as_str() }}/static/my-shares.js"></script>
 <script>
     const form = document.getElementById("pasta-form");
     const submitButton = document.getElementById("submit-button");
@@ -301,6 +308,7 @@
     const hiddenEncryptedRandomKeyField = document.getElementById("encrypted_random_key");
     const hiddenPlainKeyField = document.getElementById("plain_key");
     const hiddenEncryptedClientSide = document.getElementById("encrypt_client");
+    const customCodeField = document.getElementById("custom_code");
 
     const te = new TextEncoder();
 
@@ -315,7 +323,7 @@
         if (passwordField.value.trim() != "") {
             if (privacyDropdown.value == "secret") {
                 submitButton.disabled = true;
-                submitButton.value = 'Encrypting...';
+                submitButton.value = '加密中...';
                 // Yield to UI to allow text update
                 await new Promise(r => setTimeout(r, 10));
 
@@ -338,9 +346,9 @@
                 hiddenRandomKeyField.name = "";
                 content.value = contentInput.value;
                 // {% if !args.no_file_upload %}
-                if (privacyDropdown.value == "private" && hiddenFileButton.files.length > 1) {
+                if ((privacyDropdown.value == "private" || privacyDropdown.value == "public_password") && hiddenFileButton && hiddenFileButton.files.length > 1) {
                     submitButton.disabled = true;
-                    submitButton.value = 'Zipping...';
+                    submitButton.value = '打包中...';
                     await new Promise(r => setTimeout(r, 10));
                     await zipFiles();
                 }
@@ -359,7 +367,7 @@
         content.value = contentInput.value;
         // {%- endif %}
 
-        if (contentInput.value.trim() == "" && (hiddenFileButton == undefined || hiddenFileButton.files.length == 0)) {
+        if (contentInput.value.trim() == "" && (!hiddenFileButton || hiddenFileButton.files.length == 0)) {
             contentInput.focus();
             return false;
         }
@@ -367,7 +375,7 @@
         let showProgress = false;
 
         submitButton.disabled = true;
-        submitButton.value = 'Uploading...';
+        submitButton.value = '上传中...';
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '{{ args.public_path_as_str() }}/upload', true);
@@ -376,7 +384,7 @@
             if (showProgress) {
                 const progressPercent = Math.round((event.loaded / event.total) * 100);
                 if (progressPercent === 100) {
-                    submitButton.value = 'Processing...';
+                    submitButton.value = '处理中...';
                 } else {
                     submitButton.value = `${progressPercent}%`;
                 }
@@ -385,9 +393,10 @@
 
         xhr.onload = function () { // Use onload instead of onreadystatechange for cleaner status check
              if (xhr.status === 200 || xhr.status === 302) {
+                rememberShare(xhr.responseURL);
                 window.location.href = xhr.responseURL;
             } else {
-                submitButton.value = 'Failed';
+                submitButton.value = '失败';
                 submitButton.disabled = false;
             }
         };
@@ -418,21 +427,22 @@
     }
 
     function fileOversized() {
-        if (hiddenFileButton.files.length > 0) {
+        if (hiddenFileButton && hiddenFileButton.files.length > 0) {
             const fileSize = hiddenFileButton.files.item(0).size;
             const fileSizeMb = fileSize / 1024 ** 2;
 
-            if (privacyDropdown?.value == "secret") {
+            const encryptedUploadTypes = ["private", "public_password", "secret"];
+            if (encryptedUploadTypes.includes(privacyDropdown?.value)) {
                 if (fileSizeMb >
                     parseInt("{{ args.max_file_size_encrypted_mb }}")) {
-                    attachFileButton.textContent = "Please select a file smaller than {{ args.max_file_size_encrypted_mb }} MB";
+                    attachFileButton.textContent = "请选择小于 {{ args.max_file_size_encrypted_mb }} MB 的文件";
                     this.value = "";
                     return true;
                 }
             } else {
                 if (fileSizeMb >
                     parseInt("{{ args.max_file_size_unencrypted_mb }}")) {
-                    attachFileButton.textContent = "Please select a file smaller than {{ args.max_file_size_unencrypted_mb }} MB";
+                    attachFileButton.textContent = "请选择小于 {{ args.max_file_size_unencrypted_mb }} MB 的文件";
                     this.value = "";
                     return true;
                 }
@@ -443,7 +453,7 @@
 
     function encryptFile() {
         return new Promise((resolve, reject) => {
-            if (hiddenFileButton.files.length > 0) {
+            if (hiddenFileButton && hiddenFileButton.files.length > 0) {
                 // If multiple files and encrypting, zip them first
                 if (hiddenFileButton.files.length > 1) {
                      const zip = new JSZip();
@@ -512,7 +522,7 @@
     }
 
     async function zipFiles() {
-        if (hiddenFileButton.files.length > 1) {
+        if (hiddenFileButton && hiddenFileButton.files.length > 1) {
             const zip = new JSZip();
             const promises = [];
             for (let i = 0; i < hiddenFileButton.files.length; i++) {
@@ -535,34 +545,36 @@
         }
     }
 
-    hiddenFileButton.addEventListener('change', function () {
+    if (hiddenFileButton) hiddenFileButton.addEventListener('change', function () {
         if (this.files.length > 1) {
-            attachFileButton.textContent = "Attached: " + this.files.length + " files";
+            attachFileButton.textContent = "已选择 " + this.files.length + " 个文件";
         } else if (this.files.length === 1) {
-            attachFileButton.textContent = "Attached: " + this.files[0].name;
+            attachFileButton.textContent = "已选择：" + this.files[0].name;
         }
         fileOversized();
     });
 
     dropContainer.ondragover = dropContainer.ondragenter = function (evt) {
         evt.preventDefault();
+        if (!hiddenFileButton) return;
         if (hiddenFileButton.files.length == 0) {
-            attachFileButton.textContent = "Drop your file here";
+            attachFileButton.textContent = "拖拽文件到这里";
         } else {
-            attachFileButton.textContent = "Drop your file here to replace " + hiddenFileButton.files[0].name;
+            attachFileButton.textContent = "拖拽到这里替换 " + hiddenFileButton.files[0].name;
         }
     };
 
     dropContainer.ondrop = function (evt) {
+        if (!hiddenFileButton) return;
         const dataTransfer = new DataTransfer();
         for (let i = 0; i < evt.dataTransfer.files.length; i++) {
              dataTransfer.items.add(evt.dataTransfer.files[i]);
         }
         hiddenFileButton.files = dataTransfer.files;
         if (hiddenFileButton.files.length > 1) {
-             attachFileButton.textContent = "Attached: " + hiddenFileButton.files.length + " files";
+             attachFileButton.textContent = "已选择 " + hiddenFileButton.files.length + " 个文件";
         } else {
-             attachFileButton.textContent = "Attached: " + hiddenFileButton.files[0].name;
+             attachFileButton.textContent = "已选择：" + hiddenFileButton.files[0].name;
         }
         evt.preventDefault();
     };
@@ -580,6 +592,7 @@
         }
 
         if (pastedFiles.length === 0) return;
+        if (!hiddenFileButton) return;
 
         evt.preventDefault();
 
@@ -612,14 +625,30 @@
         hiddenFileButton.files = dataTransfer.files;
 
         if (hiddenFileButton.files.length > 1) {
-            attachFileButton.textContent = "Attached: " + hiddenFileButton.files.length + " files";
+            attachFileButton.textContent = "已选择 " + hiddenFileButton.files.length + " 个文件";
         } else if (hiddenFileButton.files.length === 1) {
-            attachFileButton.textContent = "Attached: " + hiddenFileButton.files[0].name;
+            attachFileButton.textContent = "已选择：" + hiddenFileButton.files[0].name;
         }
 
         fileOversized();
     });
     // {%- endif %}
+
+    function rememberShare(url) {
+        if (!window.MicrobinMyShares || !url) return;
+
+        const privacy = privacyDropdown ? privacyDropdown.value : "unlisted";
+        const inputCode = customCodeField ? customCodeField.value.trim() : "";
+        const title = inputCode || (contentInput.value.trim().split(/\s+/).slice(0, 6).join(" ") || "未命名分享");
+        const kind = contentInput.value.trim().match(/^https?:\/\//) ? "url" : "upload";
+
+        window.MicrobinMyShares.addShare({
+            url,
+            kind,
+            privacy,
+            title,
+        });
+    }
 
 </script>
 
@@ -632,7 +661,7 @@
         display: grid;
         grid-gap: 10px;
         grid-template-columns: repeat(auto-fit, 152px);
-        grid-template-rows: repeat(1, 90px);
+        grid-auto-rows: minmax(90px, auto);
         margin-bottom: 1rem;
     }
 
@@ -684,6 +713,30 @@
 
     #file {
         display: none;
+    }
+
+    .help-tip {
+        position: relative;
+        text-decoration: none;
+        cursor: help;
+    }
+
+    .help-tip:hover::after,
+    .help-tip:focus::after {
+        content: attr(data-tip);
+        position: absolute;
+        left: 50%;
+        bottom: 1.6rem;
+        transform: translateX(-50%);
+        width: 220px;
+        padding: 0.45rem 0.55rem;
+        border-radius: 6px;
+        background: rgba(17, 24, 39, 0.95);
+        color: white;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        box-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
+        z-index: 20;
     }
 </style>
 
