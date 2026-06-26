@@ -1,82 +1,74 @@
+# MicroBin 中文增强版
 
-![Screenshot](.github/index.png)
+这是基于 [szabodanika/microbin](https://github.com/szabodanika/microbin) 的个人定制版本。原项目是一个轻量、自托管的 Pastebin / 文件分享 / URL 跳转服务。
 
-# MicroBin
+本仓库由用户需求驱动，并由 AI 辅助完成代码修改、测试、打包与部署验证。主要目标是让 MicroBin 更适合中文环境下的临时分享、公开列表、密码访问和个人分享记录管理。
 
-> This fork is a Chinese-localized MicroBin build with sharing improvements for
-> `share.312996.xyz`: custom share codes, public items that can require a
-> password, direct `/share-code` lookup, local "My Shares" history, share-code
-> search, hover help text, and automatic hiding of expired local share records.
+## 与原版的关系
 
-![Build](https://github.com/szabodanika/microbin/actions/workflows/rust.yml/badge.svg)
-[![crates.io](https://img.shields.io/crates/v/microbin.svg)](https://crates.io/crates/microbin)
-[![Docker Image](https://github.com/szabodanika/microbin/actions/workflows/release.yml/badge.svg)](https://hub.docker.com/r/danielszabo99/microbin)
-[![Docker Pulls](https://img.shields.io/docker/pulls/danielszabo99/microbin?label=Docker%20pulls)](https://img.shields.io/docker/pulls/danielszabo99/microbin?label=Docker%20pulls)
+- 上游项目：`szabodanika/microbin`
+- 当前基础版本：基于上游 `master` 的 `67bbac5`
+- 本仓库新增提交：`feat: add Chinese sharing workflow`
+- 许可证：保留原项目 `BSD-3-Clause License`
 
-MicroBin is a super tiny, feature-rich, configurable, self-contained and self-hosted paste bin web application. It is very easy to set up and use, and will only require a few megabytes of memory and disk storage. It takes only a couple minutes to set it up, why not give it a try now?
+本项目不是官方 MicroBin 版本，也不代表原作者对本定制版背书。
 
-## Get your own MicroBin server at [my.microbin.eu](https://my.microbin.eu)!
+## 新增和调整功能
 
-Test MicroBin at [pub.microbin.eu](https://pub.microbin.eu)!
+- 中文界面：导航、创建页、列表页、帮助页、查看/鉴权页面等主要文案已汉化。
+- 自定义分享码：创建分享时可以填写更直观的分享码，例如 `work-note`、`1234`。
+- 直接路径访问：分享码可以直接拼到域名后访问，例如 `https://example.com/1234`。
+- 分享码搜索：公开列表页支持按分享码筛选。
+- 公开但需要密码：内容仍显示在公开列表中，但查看正文、原始内容、文件或跳转时需要输入密码。
+- 我的分享：浏览器本地记录自己创建过的分享，方便返回列表页找回链接。
+- 失效自动隐藏：过期、阅后销毁或已删除的本地分享记录会自动从“我的分享”中隐藏，不再显示“已失效”。
+- Hover 帮助提示：创建页问号支持鼠标悬停查看说明，同时保留点击进入完整帮助页。
+- SQLite 兼容迁移：新增自定义分享码字段时会自动迁移旧数据库。
+- Docker 运行时调整：镜像内包含必要运行时依赖，适配当前部署方式。
 
-### Or host MicroBin yourself
+## 隐私和本地记录说明
 
-Run our quick docker setup script ([DockerHub](https://hub.docker.com/r/danielszabo99/microbin)):
+“我的分享”只保存在当前浏览器的 `localStorage` 中，不会同步到服务器，也不会保存密码。
+
+如果某条分享已经过期、达到阅后销毁次数、被删除，或服务返回 MicroBin 的 `404 Not Found` 页面，本地记录会自动移除。
+
+## 配置说明
+
+示例配置文件为 `.env.example`。部署前请复制为 `.env` 并按需修改，尤其是：
+
 ```bash
-bash <(curl -s https://microbin.eu/docker.sh)
+MICROBIN_ADMIN_PASSWORD=change-me
 ```
 
-Or install it manually from [Cargo](https://crates.io/crates/microbin):
+不要把真实 `.env`、数据库文件、上传文件或备份文件提交到公开仓库。
+
+## 上传限制
+
+当前默认上传限制：
+
+- 加密或带密码上传：`256 MB`
+- 不加密上传：`2048 MB`
+
+可通过环境变量调整：
 
 ```bash
-cargo install microbin;
-curl -L -O https://raw.githubusercontent.com/szabodanika/microbin/master/.env;
-source .env;
-microbin
+MICROBIN_MAX_FILE_SIZE_ENCRYPTED_MB=256
+MICROBIN_MAX_FILE_SIZE_UNENCRYPTED_MB=2048
 ```
 
-On our website [microbin.eu](https://microbin.eu), you will find the following:
+## 测试
 
-- [Screenshots](https://microbin.eu/screenshots/)
-- [Guide and Documentation](https://microbin.eu/docs/intro)
-- [Roadmap](https://microbin.eu/roadmap)
+仓库中包含一些轻量测试，用于覆盖本次定制功能：
 
-## Features
+```bash
+node tests/my-shares.test.js
+node tests/index-template.test.js
+node tests/dockerfile-runtime.test.js
+node tests/sqlite-migration.test.js
+```
 
-- Entirely self-contained executable, MicroBin is a single file!
-- Server-side and client-side E2E encryption
-- File uploads (e.g. `server.com/file/pig-dog-cat`)
-- Raw text serving (e.g. `server.com/raw/pig-dog-cat`)
-- QR code support
-- URL shortening and redirection
-- Animal names instead of random numbers for upload identifiers (64 animals)
-- Multiple attachments
-- SQLite and JSON database support
-- Private and public, editable and uneditable, automatically and never expiring uploads
-- Automatic dark mode and custom styling support with very little CSS and only vanilla JS (see [`water.css`](https://github.com/kognise/water.css))
-- And much more!
+## 许可证
 
-## What is an upload?
+本项目继承原 MicroBin 的 [BSD 3-Clause License](LICENSE)。
 
-In MicroBin, an upload can be:
-
-- A text that you want to paste from one machine to another, e.g. some code,
-- Files that you want to share, e.g. a video that is too large for Discord, a zip with a code project in it or an image,
-- A URL redirection.
-
-## When is MicroBin useful?
-
-You can use MicroBin:
-
-- To send long texts to other people,
-- To send large files to other people,
-- To share secrets or sensitive documents securely,
-- As a URL shortener/redirect service,
-- To serve content on the web, eg . configuration files for testing, images, or any other file content using the Raw functionality,
-- To move files between your desktop and a server you access from the console,
-- As a "postbox" service where people can upload their files or texts, but they cannot see or remove what others sent you,
-- Or even to take quick notes.
-
-...and many other things, why not get creative?
-
-MicroBin and MicroBin.eu are available under the [BSD 3-Clause License](LICENSE).
+原项目版权声明、许可证文本和免责声明已保留。使用、修改或分发本项目时，请继续遵守该许可证要求。
