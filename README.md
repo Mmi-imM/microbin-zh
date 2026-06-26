@@ -34,7 +34,27 @@
 
 ## 配置说明
 
-示例配置文件为 `.env.example`。部署前请复制为 `.env` 并按需修改，尤其是：
+仓库提供了可直接运行的 `docker-compose.yml`：
+
+```bash
+docker compose -f docker-compose.yml up -d
+```
+
+默认镜像为 `mmiimm/microbin-zh:latest`，默认监听宿主机 `8080` 端口，并使用 Docker 命名卷 `microbin_data` 保存数据库和上传文件。
+
+公开部署前请至少修改管理员密码：
+
+```bash
+MICROBIN_ADMIN_PASSWORD=your-strong-password docker compose -f docker-compose.yml up -d
+```
+
+如果只想让反向代理访问容器，可以绑定到本机地址：
+
+```bash
+MICROBIN_HOST_BIND=127.0.0.1 MICROBIN_HOST_PORT=8088 docker compose -f docker-compose.yml up -d
+```
+
+完整环境变量示例见 `.env.example`。也可以复制为 `.env` 后按需修改，尤其是：
 
 ```bash
 MICROBIN_ADMIN_PASSWORD=change-me
